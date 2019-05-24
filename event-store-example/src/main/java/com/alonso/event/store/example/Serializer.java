@@ -53,7 +53,8 @@ public class Serializer implements PayloadSerializer {
     @Override
     public Payload payLoadFrom(String eventType, String payload) {
         try {
-            return (Payload) mapper.readValue(payload, Class.forName(eventType));
+            //TODO calculate full name
+            return (Payload) mapper.readValue(payload, Class.forName("com.alonso.event.store.example.domain.event."+eventType));
         } catch (IOException | ClassNotFoundException e) {
             LOGGER.error("Could not deserialize the eventType {} with this payload {]", eventType, payload);
             throw new IllegalStateException(e);

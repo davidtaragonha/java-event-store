@@ -1,11 +1,12 @@
 package com.alonso.event.store.core;
 
 import java.util.HashMap;
+import java.util.UUID;
 
 //TODO Create builder pattern
 public class Event {
     private String id;
-    private long sequenceNumber;
+    private Long sequenceNumber;
     private String correlationId;
     private String stream;
     private String streamId;
@@ -13,6 +14,17 @@ public class Event {
     private String eventType;
     private Payload payload;
     private HashMap metadata;
+
+    public Event(){
+    }
+
+    public Event(Payload payload) {
+        this.id = UUID.randomUUID().toString();
+        this.payload = payload;
+        this.stream = payload.getAggregate().getSimpleName();
+        this.streamId = payload.getAggregateId();
+        this.eventType = payload.getClass().getSimpleName();
+    }
 
     public String getId() {
         return id;
@@ -22,11 +34,11 @@ public class Event {
         this.id = id;
     }
 
-    public long getSequenceNumber() {
+    public Long getSequenceNumber() {
         return sequenceNumber;
     }
 
-    public void setSequenceNumber(long sequenceNumber) {
+    public void setSequenceNumber(Long sequenceNumber) {
         this.sequenceNumber = sequenceNumber;
     }
 

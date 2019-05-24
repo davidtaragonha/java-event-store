@@ -11,6 +11,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -25,11 +26,17 @@ public class EventStoreJPA implements EventStore {
 
     private final EventRepositoryJPA eventRepositoryJPA;
     private final EventJPAMapper eventJPAMapper;
+    private final EventStoreProperties eventStoreProperties;
+    private final Extractor extractor;
 
     @Autowired
-    public EventStoreJPA(EventRepositoryJPA eventRepositoryJPA, EventJPAMapper eventJPAMapper) {
+    public EventStoreJPA(EventRepositoryJPA eventRepositoryJPA,
+                         EventJPAMapper eventJPAMapper,
+                         EventStoreProperties eventStoreProperties, Extractor extractor) {
         this.eventRepositoryJPA = eventRepositoryJPA;
         this.eventJPAMapper = eventJPAMapper;
+        this.eventStoreProperties = eventStoreProperties;
+        this.extractor = extractor;
     }
 
     public void publish(Event event) {
@@ -77,28 +84,26 @@ public class EventStoreJPA implements EventStore {
 
     private void retrieveEvents(long sequenceNumber,
                                 FluxSink<Event> fluxSink,
-                                Function<Long,Stream<EventJPA>> resultSet) {
+                                Function<Long, Stream<EventJPA>> resultSet) {
         Mutable<Long> seqMutable = new Mutable<>(sequenceNumber);
-        while(true){
-            resultSet.apply(seqMutable.getValue())
-                .map(eventJPA -> {
-                    try {
-                        return eventJPAMapper.from(eventJPA);
-                    }
-                    catch (Exception ex){
-                        //TODO Create lambda to wrap exceptions
-                        LOGGER.error("Failed mapping eventJPA to Event", ex);
-                        throw ex;
-                    }
-                })
-                .forEach(event -> {
-                    fluxSink.next(event);
-                    seqMutable.setValue(event.getSequenceNumber());
-                });
+        while(!fluxSink.isCancelled()){
+            extractor.process(seqMutable, fluxSink, resultSet);
+            sleep();
+        }
+        LOGGER.info("Closed the publisher");
+    }
+
+    private void sleep(){
+        try {
+            TimeUnit.SECONDS.sleep(eventStoreProperties.getDelay());
+        } catch (InterruptedException e) {
+            LOGGER.error("Sleeping the event store to query the next events");
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
         }
     }
 
-    private static class Mutable<T> {
+    public static class Mutable<T> {
         private T value;
 
         private Mutable(T value) {

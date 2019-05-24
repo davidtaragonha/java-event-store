@@ -11,8 +11,8 @@ public class EventJPA {
 
     @Id
     private String id;
-    @GeneratedValue(strategy = GenerationType.SEQUENCE)
-    private long sequenceNumber;
+    @Column(columnDefinition = "BIGINT NOT NULL AUTO_INCREMENT")
+    private Long sequenceNumber;
     private String correlationId;
     private String stream;
     private String streamId;
@@ -29,11 +29,11 @@ public class EventJPA {
         this.id = id;
     }
 
-    public long getSequenceNumber() {
+    public Long getSequenceNumber() {
         return sequenceNumber;
     }
 
-    public void setSequenceNumber(long sequenceNumber) {
+    public void setSequenceNumber(Long sequenceNumber) {
         this.sequenceNumber = sequenceNumber;
     }
 
