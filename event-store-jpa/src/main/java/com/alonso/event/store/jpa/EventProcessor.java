@@ -23,18 +23,15 @@ public class EventProcessor {
         this.eventJPAMapper = eventJPAMapper;
     }
 
-    public void process(EventStoreJPA.Mutable<Long> seqMutable,
+    public void process(Mutable<Long> seqMutable,
                         FluxSink<Event> fluxSink,
-                        Function<Long,Stream<EventJPA>> resultSet) {
-
-        resultSet.apply(seqMutable.getValue())
-            .map(this::parseEvent)
-            .forEach(event -> {
-                fluxSink.next(event);
-                seqMutable.setValue(event.getSequenceNumber());
-            });
-
-        LOGGER.info("Polling evenStore");
+                        Function<Long,Stream<EventJPA>> eventStreamSupplier) {
+        eventStreamSupplier.apply(seqMutable.getValue())
+                 .map(this::parseEvent)
+                 .forEach(event -> {
+                    fluxSink.next(event);
+                    seqMutable.setValue(event.getSequenceNumber());
+                 });
     }
 
     private Event parseEvent(EventJPA eventJPA) {

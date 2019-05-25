@@ -1,5 +1,5 @@
 event-store:
-  delay: 10
+  delay: 5
 management:
   endpoints:
     web:

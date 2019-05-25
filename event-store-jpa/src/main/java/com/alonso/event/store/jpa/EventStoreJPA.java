@@ -9,18 +9,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static java.util.Objects.requireNonNull;
-
-//TODO Use querydls to do queries with predicates
 @Component
 public class EventStoreJPA implements EventStore {
 
@@ -59,52 +54,46 @@ public class EventStoreJPA implements EventStore {
     }
 
     public Publisher<Event> forSequence(long sequenceNumber) {
-        return Flux.create(fluxSink ->
-            retrieveEvents(
-                sequenceNumber,
-                fluxSink,
-                eventRepositoryJPA::findBySequenceNumberGreaterThan
-            )
+        return createEventPublisher(
+            sequenceNumber,
+            eventRepositoryJPA::findBySequenceNumberGreaterThan
         );
     }
 
     public Publisher<Event> forStream(String stream, long sequenceNumber) {
-        return Flux.create(fluxSink ->
-            retrieveEvents(
-                sequenceNumber,
-                fluxSink,
-                seq -> eventRepositoryJPA.findByStreamAndSequenceNumberGreaterThan(stream, seq)
-            )
+        return createEventPublisher(
+            sequenceNumber,
+            seq -> eventRepositoryJPA.findByStreamAndSequenceNumberGreaterThan(stream, seq)
         );
     }
 
     public Publisher<Event> forStreamId(String streamId, long sequenceNumber) {
-        return Flux.create(fluxSink ->
-            retrieveEvents(
-                sequenceNumber,
-                fluxSink,
-                seq -> eventRepositoryJPA.findByStreamIdAndSequenceNumberGreaterThan(streamId, seq)
-            )
+        return createEventPublisher(
+            sequenceNumber,
+            seq -> eventRepositoryJPA.findByStreamIdAndSequenceNumberGreaterThan(streamId, seq)
         );
     }
 
-    private void retrieveEvents(long sequenceNumber,
-                                FluxSink<Event> fluxSink,
-                                Function<Long, Stream<EventJPA>> resultSet) {
+    private Flux<Event> createEventPublisher(long sequenceNumber, Function<Long, Stream<EventJPA>> eventStreamSupplier) {
+        return Flux.create(fluxSink -> {
+            //TODO Review a way to monitoring all publishers
+            Mutable<Number> publisherStatus = new Mutable<>(1);
+            meterRegistry.gauge("event_store_publisher", publisherStatus.getValue());
 
-        //TODO Register al subscriptions with its status
-        AtomicInteger gauge = meterRegistry.gauge(Thread.currentThread().getName(), new AtomicInteger(1));
-        try{
-            Mutable<Long> seqMutable = new Mutable<>(sequenceNumber);
-            while(!fluxSink.isCancelled()){
-                eventProcessor.process(seqMutable, fluxSink, resultSet);
-                sleep();
+            try{
+                Mutable<Long> seqMutable = new Mutable<>(sequenceNumber);
+                while(!fluxSink.isCancelled()){
+                    eventProcessor.process(seqMutable, fluxSink, eventStreamSupplier);
+                    sleep();
+                }
             }
-        }
-        finally {
-            gauge.decrementAndGet();
-        }
-        LOGGER.info("Closed the publisher");
+            catch (Exception ex){
+                publisherStatus.setValue(3);
+            }
+
+            publisherStatus.setValue(2);
+            LOGGER.info("Publisher closed");
+        });
     }
 
     private void sleep(){
@@ -114,23 +103,6 @@ public class EventStoreJPA implements EventStore {
             LOGGER.error("Sleeping the event store to query the next events");
             Thread.currentThread().interrupt();
             throw new IllegalStateException(e);
-        }
-    }
-
-    public static class Mutable<T> {
-        private T value;
-
-        private Mutable(T value) {
-            setValue(value);
-        }
-
-        public T getValue() {
-            return value;
-        }
-
-        public void setValue(T value) {
-            requireNonNull(value, "Can not be null the value for mutable object");
-            this.value = value;
         }
     }
 }
