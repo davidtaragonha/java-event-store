@@ -1,3 +1,5 @@
+event-store:
+  delay: 10
 management:
   endpoints:
     web:
@@ -7,3 +9,5 @@ spring:
   h2:
     console:
       enabled: true
+  jpa:
+    show-sql: true
