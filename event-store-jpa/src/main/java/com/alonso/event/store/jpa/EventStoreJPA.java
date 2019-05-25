@@ -2,6 +2,8 @@ package com.alonso.event.store.jpa;
 
 import com.alonso.event.store.core.Event;
 import com.alonso.event.store.core.EventStore;
+import com.querydsl.core.types.Predicate;
+import com.querydsl.core.types.dsl.Expressions;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -14,13 +16,10 @@ import reactor.core.publisher.FluxSink;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
 
-//TODO Use querydls to do queries with predicates
 @Component
 public class EventStoreJPA implements EventStore {
 
@@ -59,45 +58,37 @@ public class EventStoreJPA implements EventStore {
     }
 
     public Publisher<Event> forSequence(long sequenceNumber) {
-        return Flux.create(fluxSink ->
-            retrieveEvents(
-                sequenceNumber,
-                fluxSink,
-                eventRepositoryJPA::findBySequenceNumberGreaterThan
-            )
-        );
+        //TODO Review other way to pass null predicate
+        return createFlux(sequenceNumber, Expressions.TRUE.isTrue());
     }
 
     public Publisher<Event> forStream(String stream, long sequenceNumber) {
-        return Flux.create(fluxSink ->
-            retrieveEvents(
-                sequenceNumber,
-                fluxSink,
-                seq -> eventRepositoryJPA.findByStreamAndSequenceNumberGreaterThan(stream, seq)
-            )
-        );
+        return createFlux(sequenceNumber, QEventJPA.eventJPA.stream.eq(stream));
     }
 
     public Publisher<Event> forStreamId(String streamId, long sequenceNumber) {
+        return createFlux(sequenceNumber, QEventJPA.eventJPA.streamId.eq(streamId));
+    }
+
+    private Publisher<Event> createFlux(long sequenceNumber, Predicate predicate) {
         return Flux.create(fluxSink ->
             retrieveEvents(
                 sequenceNumber,
                 fluxSink,
-                seq -> eventRepositoryJPA.findByStreamIdAndSequenceNumberGreaterThan(streamId, seq)
+                predicate
             )
         );
     }
 
     private void retrieveEvents(long sequenceNumber,
                                 FluxSink<Event> fluxSink,
-                                Function<Long, Stream<EventJPA>> resultSet) {
-
+                                Predicate predicate) {
         //TODO Register al subscriptions with its status
         AtomicInteger gauge = meterRegistry.gauge(Thread.currentThread().getName(), new AtomicInteger(1));
         try{
             Mutable<Long> seqMutable = new Mutable<>(sequenceNumber);
             while(!fluxSink.isCancelled()){
-                eventProcessor.process(seqMutable, fluxSink, resultSet);
+                eventProcessor.process(seqMutable, fluxSink, predicate);
                 sleep();
             }
         }
