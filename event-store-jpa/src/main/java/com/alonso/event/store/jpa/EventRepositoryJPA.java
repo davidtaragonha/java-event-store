@@ -7,7 +7,7 @@ import java.util.stream.Stream;
 
 @Repository
 public interface EventRepositoryJPA extends CrudRepository<EventJPA, String> {
-    Stream<EventJPA> findBySequenceNumber(long sequenceNumber);
-    Stream<EventJPA> findByStreamAndSequenceNumber(String stream, long sequenceNumber);
-    Stream<EventJPA> findByStreamIdAndSequenceNumber(String streamId, long sequenceNumber);
+    Stream<EventJPA> findBySequenceNumberGreaterThan(long sequenceNumber);
+    Stream<EventJPA> findByStreamAndSequenceNumberGreaterThan(String stream, long sequenceNumber);
+    Stream<EventJPA> findByStreamIdAndSequenceNumberGreaterThan(String streamId, long sequenceNumber);
 }

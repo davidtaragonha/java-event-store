@@ -5,11 +5,13 @@ import com.alonso.event.store.core.EventStore;
 import com.alonso.event.store.example.DomainPublisher;
 import com.alonso.event.store.example.domain.model.Car;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @RestController("/cars")
 public class CarController {
@@ -30,8 +32,11 @@ public class CarController {
         return Mono.just(car);
     }
 
-    @GetMapping
+
+    @GetMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     Flux<Event> getEvents(){
-        return Flux.empty();
+         return Flux.from(eventStore.forSequence(0))
+                .subscribeOn(Schedulers.elastic())
+                 .publishOn(Schedulers.newSingle("web-subscription"));
     }
 }

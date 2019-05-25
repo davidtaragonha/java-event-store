@@ -2,6 +2,7 @@ package com.alonso.event.store.jpa;
 
 import com.alonso.event.store.core.Event;
 import com.alonso.event.store.core.EventStore;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +13,7 @@ import reactor.core.publisher.FluxSink;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -27,25 +29,29 @@ public class EventStoreJPA implements EventStore {
     private final EventRepositoryJPA eventRepositoryJPA;
     private final EventJPAMapper eventJPAMapper;
     private final EventStoreProperties eventStoreProperties;
-    private final Extractor extractor;
+    private final MeterRegistry meterRegistry;
+    private final EventProcessor eventProcessor;
 
     @Autowired
     public EventStoreJPA(EventRepositoryJPA eventRepositoryJPA,
                          EventJPAMapper eventJPAMapper,
-                         EventStoreProperties eventStoreProperties, Extractor extractor) {
+                         EventStoreProperties eventStoreProperties, MeterRegistry meterRegistry, EventProcessor eventProcessor) {
         this.eventRepositoryJPA = eventRepositoryJPA;
         this.eventJPAMapper = eventJPAMapper;
         this.eventStoreProperties = eventStoreProperties;
-        this.extractor = extractor;
+        this.meterRegistry = meterRegistry;
+        this.eventProcessor = eventProcessor;
     }
 
     public void publish(Event event) {
+        meterRegistry.counter("event_store_publish","event",event.getEventType()).increment();
         eventRepositoryJPA.save(eventJPAMapper.to(event));
     }
 
     public void publish(List<Event> events) {
         List<EventJPA> eventsJPA = events
             .stream()
+            .peek(event -> meterRegistry.counter("event_store_publish","event",event.getEventType()).increment())
             .map(eventJPAMapper::to)
             .collect(Collectors.toList());
 
@@ -57,7 +63,7 @@ public class EventStoreJPA implements EventStore {
             retrieveEvents(
                 sequenceNumber,
                 fluxSink,
-                eventRepositoryJPA::findBySequenceNumber
+                eventRepositoryJPA::findBySequenceNumberGreaterThan
             )
         );
     }
@@ -67,7 +73,7 @@ public class EventStoreJPA implements EventStore {
             retrieveEvents(
                 sequenceNumber,
                 fluxSink,
-                seq -> eventRepositoryJPA.findByStreamAndSequenceNumber(stream, seq)
+                seq -> eventRepositoryJPA.findByStreamAndSequenceNumberGreaterThan(stream, seq)
             )
         );
     }
@@ -77,7 +83,7 @@ public class EventStoreJPA implements EventStore {
             retrieveEvents(
                 sequenceNumber,
                 fluxSink,
-                seq -> eventRepositoryJPA.findByStreamIdAndSequenceNumber(streamId, seq)
+                seq -> eventRepositoryJPA.findByStreamIdAndSequenceNumberGreaterThan(streamId, seq)
             )
         );
     }
@@ -85,10 +91,18 @@ public class EventStoreJPA implements EventStore {
     private void retrieveEvents(long sequenceNumber,
                                 FluxSink<Event> fluxSink,
                                 Function<Long, Stream<EventJPA>> resultSet) {
-        Mutable<Long> seqMutable = new Mutable<>(sequenceNumber);
-        while(!fluxSink.isCancelled()){
-            extractor.process(seqMutable, fluxSink, resultSet);
-            sleep();
+
+        //TODO Register al subscriptions with its status
+        AtomicInteger gauge = meterRegistry.gauge(Thread.currentThread().getName(), new AtomicInteger(1));
+        try{
+            Mutable<Long> seqMutable = new Mutable<>(sequenceNumber);
+            while(!fluxSink.isCancelled()){
+                eventProcessor.process(seqMutable, fluxSink, resultSet);
+                sleep();
+            }
+        }
+        finally {
+            gauge.decrementAndGet();
         }
         LOGGER.info("Closed the publisher");
     }

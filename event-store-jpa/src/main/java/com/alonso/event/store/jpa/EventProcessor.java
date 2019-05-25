@@ -13,13 +13,13 @@ import java.util.stream.Stream;
 
 @Component
 @Transactional(readOnly = true)
-public class Extractor {
+public class EventProcessor {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(Extractor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(EventProcessor.class);
     private final EventJPAMapper eventJPAMapper;
 
     @Autowired
-    public Extractor(EventJPAMapper eventJPAMapper) {
+    public EventProcessor(EventJPAMapper eventJPAMapper) {
         this.eventJPAMapper = eventJPAMapper;
     }
 
@@ -28,19 +28,22 @@ public class Extractor {
                         Function<Long,Stream<EventJPA>> resultSet) {
 
         resultSet.apply(seqMutable.getValue())
-                .map(eventJPA -> {
-                    try {
-                        return eventJPAMapper.from(eventJPA);
-                    }
-                    catch (Exception ex){
-                        //TODO Create lambda to wrap exceptions
-                        LOGGER.error("Failed mapping eventJPA to Event", ex);
-                        throw ex;
-                    }
-                })
-                .forEach(event -> {
-                    fluxSink.next(event);
-                    seqMutable.setValue(event.getSequenceNumber());
-                });
+            .map(this::parseEvent)
+            .forEach(event -> {
+                fluxSink.next(event);
+                seqMutable.setValue(event.getSequenceNumber());
+            });
+
+        LOGGER.info("Polling evenStore");
+    }
+
+    private Event parseEvent(EventJPA eventJPA) {
+        try {
+            return eventJPAMapper.from(eventJPA);
+        }
+        catch (Exception ex){
+            LOGGER.error("Failed mapping eventJPA to Event", ex);
+            throw ex;
+        }
     }
 }
