@@ -3,6 +3,7 @@ package com.alonso.event.store.jpa;
 import com.alonso.event.store.core.Event;
 import com.alonso.event.store.core.EventStore;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,8 +78,8 @@ public class EventStoreJPA implements EventStore {
     private Flux<Event> createEventPublisher(long sequenceNumber, Function<Long, Stream<EventJPA>> eventStreamSupplier) {
         return Flux.create(fluxSink -> {
             //TODO Review a way to monitoring all publishers
-            Mutable<Number> publisherStatus = new Mutable<>(1);
-            meterRegistry.gauge("event_store_publisher", publisherStatus.getValue());
+            PublisherStatus publisherStatus = new PublisherStatus();
+            meterRegistry.gauge("event_store_publishers", Tags.of("number",publisherStatus.getId()) ,publisherStatus.getStatus());
 
             try{
                 Mutable<Long> seqMutable = new Mutable<>(sequenceNumber);
@@ -88,10 +89,11 @@ public class EventStoreJPA implements EventStore {
                 }
             }
             catch (Exception ex){
-                publisherStatus.setValue(3);
+                publisherStatus.error();
+                throw ex;
             }
 
-            publisherStatus.setValue(2);
+            publisherStatus.closed();
             LOGGER.info("Publisher closed");
         });
     }
