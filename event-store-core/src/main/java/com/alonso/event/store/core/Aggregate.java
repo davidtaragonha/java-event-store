@@ -6,6 +6,6 @@ import java.lang.annotation.RetentionPolicy;
 
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
-public @interface AggregateClass {
-    Class value();
+public @interface Aggregate {
+    int version();
 }

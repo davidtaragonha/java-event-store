@@ -7,13 +7,13 @@ import java.util.UUID;
 public class Event {
     private String id;
     private Long sequenceNumber;
-    private String correlationId;
+    private String correlationId; //TODO
     private String stream;
     private String streamId;
     private int streamVersion;
     private String eventType;
     private Payload payload;
-    private HashMap metadata;
+    private HashMap metadata; //TODO
 
     public Event(){
     }
@@ -23,6 +23,7 @@ public class Event {
         this.payload = payload;
         this.stream = payload.getAggregate().getSimpleName();
         this.streamId = payload.getAggregateId();
+        this.streamVersion = payload.getAggregateVersion();
         this.eventType = payload.getClass().getSimpleName();
     }
 

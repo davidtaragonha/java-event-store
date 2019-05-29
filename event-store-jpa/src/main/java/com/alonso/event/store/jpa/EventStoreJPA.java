@@ -54,6 +54,11 @@ public class EventStoreJPA implements EventStore {
         eventRepositoryJPA.saveAll(eventsJPA);
     }
 
+    @Override
+    public Stream<Event> findBy(String streamId) {
+        return eventRepositoryJPA.findByStreamId(streamId).map(eventJPAMapper::from);
+    }
+
     public Publisher<Event> forSequence(long sequenceNumber) {
         return createEventPublisher(
             sequenceNumber,
@@ -77,7 +82,6 @@ public class EventStoreJPA implements EventStore {
 
     private Flux<Event> createEventPublisher(long sequenceNumber, Function<Long, Stream<EventJPA>> eventStreamSupplier) {
         return Flux.create(fluxSink -> {
-            //TODO Review a way to monitoring all publishers
             PublisherStatus publisherStatus = new PublisherStatus();
             meterRegistry.gauge("event_store_publishers", Tags.of("number",publisherStatus.getId()) ,publisherStatus.getStatus());
 

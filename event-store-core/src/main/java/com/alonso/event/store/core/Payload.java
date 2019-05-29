@@ -2,17 +2,26 @@ package com.alonso.event.store.core;
 
 import java.beans.Transient;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
 import java.util.Arrays;
 
 import static java.util.Objects.requireNonNull;
 
-public abstract class Payload {
+public abstract class Payload<T extends Entity>{
+    protected long version;
+
+    protected Payload(long version) {
+        this.version = version;
+    }
+
+    public long getVersion() {
+        return version;
+    }
 
     @Transient
-    public final Class getAggregate(){
-        AggregateClass annotation = this.getClass().getAnnotation(AggregateClass.class);
-        requireNonNull(annotation, "Missing aggregate annotation in the payload class");
-        return annotation.value();
+    @SuppressWarnings("unchecked")
+    public final Class<T> getAggregate(){
+        return (Class<T>) ((ParameterizedType) this.getClass().getGenericSuperclass()).getActualTypeArguments()[0];
     }
 
     @Transient
@@ -36,4 +45,11 @@ public abstract class Payload {
 
     @Transient
     public final String getEventType(){return this.getClass().getSimpleName();}
+
+    @Transient
+    public int getAggregateVersion() {
+        Aggregate annotation = getAggregate().getAnnotation(Aggregate.class);
+        requireNonNull(annotation, "Missing aggregate annotation in the Entity class");
+        return annotation.version();
+    }
 }

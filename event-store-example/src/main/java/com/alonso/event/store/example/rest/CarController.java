@@ -27,9 +27,9 @@ public class CarController {
 
     @PostMapping
     Mono<Car> create(){
-        Car car = Car.create("Mercedes", "Clase A", 45000);
-        domainPublisher.publish(car);
-        return Mono.just(car);
+//        Car car = Car.replay("Mercedes", "Clase A", 45000);
+        domainPublisher.publish(null);
+        return Mono.just(null);
     }
 
 

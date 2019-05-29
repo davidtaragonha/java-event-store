@@ -1,8 +1,8 @@
 package com.alonso.event.store.example;
 
+import com.alonso.event.store.core.Entity;
 import com.alonso.event.store.core.Event;
 import com.alonso.event.store.core.EventStore;
-import com.alonso.event.store.example.domain.model.Entity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 

@@ -9,19 +9,17 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 
 @Component
-public class CarCreatedDeserializer extends StdDeserializer<CarCreatedEvent> {
+public class CarPriceModifiedDeserializer extends StdDeserializer<CarPriceModifiedEvent> {
 
-    public CarCreatedDeserializer() {
-        super(CarCreatedEvent.class);
+    public CarPriceModifiedDeserializer() {
+        super(CarPriceModifiedEvent.class);
     }
 
     @Override
-    public CarCreatedEvent deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
+    public CarPriceModifiedEvent deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
         JsonNode node = jsonParser.getCodec().readTree(jsonParser);
-        return new CarCreatedEvent(
+        return new CarPriceModifiedEvent(
                 node.get("id").asText(),
-                node.get("company").asText(),
-                node.get("model").asText(),
                 node.get("prize").asDouble(),
                 node.get("version").asLong()
         );

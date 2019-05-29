@@ -1,12 +1,12 @@
 package com.alonso.event.store.example.domain.event;
 
-import com.alonso.event.store.core.AggregateClass;
 import com.alonso.event.store.core.AggregateIdentifier;
 import com.alonso.event.store.core.Payload;
+import com.alonso.event.store.core.Revision;
 import com.alonso.event.store.example.domain.model.Car;
 
-@AggregateClass(Car.class)
-public class CarCreatedEvent extends Payload {
+@Revision(1)
+public class CarCreatedEvent extends Payload<Car> {
 
     @AggregateIdentifier
     private final String id;
@@ -14,7 +14,8 @@ public class CarCreatedEvent extends Payload {
     private final String model;
     private final double prize;
 
-    public CarCreatedEvent(String id, String company, String model, double prize) {
+    public CarCreatedEvent(String id, String company, String model, double prize, long version) {
+        super(version);
         this.id = id;
         this.company = company;
         this.model = model;
