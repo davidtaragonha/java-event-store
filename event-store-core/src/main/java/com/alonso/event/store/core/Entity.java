@@ -16,7 +16,7 @@ public abstract class Entity {
     private static final Logger LOGGER = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private final HashMap<String, Method> cacheApplyMethods = new HashMap<>();
-    private final List<Payload> events = new ArrayList<>();
+    private final List<Event> events = new ArrayList<>();
 
     protected long version;
 
@@ -26,12 +26,10 @@ public abstract class Entity {
 
     protected void publish(Payload payload){
         applyPayload(payload);
-
-        this.version++;
-        events.add(payload);
+        events.add(new Event(payload));
     }
 
-    private void applyPayload(Payload payload){
+    protected void applyPayload(Payload payload){
         try{
             Method method = cacheApplyMethods.get(payload.getClass().getSimpleName());
             if(isNull(method)){
@@ -46,7 +44,7 @@ public abstract class Entity {
         }
     }
 
-    public List<Payload> events(){
+    public List<Event> events(){
         return Collections.unmodifiableList(events);
     }
 

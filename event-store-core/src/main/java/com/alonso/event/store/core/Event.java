@@ -3,7 +3,6 @@ package com.alonso.event.store.core;
 import java.util.HashMap;
 import java.util.UUID;
 
-//TODO Create builder pattern
 public class Event {
     private String id;
     private Long sequenceNumber;

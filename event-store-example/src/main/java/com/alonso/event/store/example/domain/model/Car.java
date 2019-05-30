@@ -20,7 +20,6 @@ public class Car extends Entity {
     private double price;
 
     private Car(){
-
     }
 
     public static Car empty(){
@@ -29,7 +28,9 @@ public class Car extends Entity {
 
 
     public static Car replay(Stream<Event> events){
-        return null;
+        Car car = Car.empty();
+        events.forEach(event -> car.applyPayload(event.getPayload()));
+        return car;
     }
 
     public String getId() {

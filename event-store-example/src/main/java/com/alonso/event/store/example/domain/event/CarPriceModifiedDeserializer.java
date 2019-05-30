@@ -20,7 +20,7 @@ public class CarPriceModifiedDeserializer extends StdDeserializer<CarPriceModifi
         JsonNode node = jsonParser.getCodec().readTree(jsonParser);
         return new CarPriceModifiedEvent(
                 node.get("id").asText(),
-                node.get("prize").asDouble(),
+                node.get("price").asDouble(),
                 node.get("version").asLong()
         );
     }

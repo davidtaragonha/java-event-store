@@ -11,7 +11,6 @@ public interface EventStore {
 
     public Stream<Event> findBy(String streamId);
 
-    //TODO Review if event store needs to allow subscriptions?
     public Publisher<Event> forSequence(long sequenceNumber);
     public Publisher<Event> forStream(String stream, long sequenceNumber);
     public Publisher<Event> forStreamId(String streamId, long sequenceNumber);
